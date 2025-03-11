@@ -109,7 +109,7 @@ services:
       dockerfile: Dockerfile
     container_name: payment-terminal
     ports:
-      - "8080:8080"
+      - "8888:3000"
     environment:
       - REACT_APP_API_URL=http://localhost:8082/payproc
       - REACT_APP_PAY_PROC_USERNAME=payproc
@@ -119,7 +119,7 @@ services:
     depends_on:
       - pay-proc
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      test: ["CMD", "curl", "-f", "http://localhost:8888"]
       interval: 30s
       timeout: 10s
       retries: 3
