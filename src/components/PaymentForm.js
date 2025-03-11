@@ -378,6 +378,7 @@ const PaymentForm = () => {
             </Formik>
           </Tab>
         </Tabs>
+        {renderDebugInfo()}
       </Card.Body>
     </Card>
   );
