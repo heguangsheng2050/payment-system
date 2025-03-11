@@ -1,0 +1,26 @@
+server:
+  port: 8083
+  servlet:
+    context-path: /paybridge
+
+spring:
+  application:
+    name: pay-bridge
+  security:
+    user:
+      name: paybridge
+      password: ${BRIDGE_PASSWORD:BridgePass123!}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    com.payment.paybridge: DEBUG

@@ -1,0 +1,133 @@
+version: '3.8'
+
+services:
+  # Database Service
+  postgres:
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    container_name: payment-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: payDemo
+      POSTGRES_USER: payadmin
+      POSTGRES_PASSWORD: PayStr0ng!2024
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - payment-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payadmin -d payDemo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Encryption Service
+  pay-secure:
+    build:
+      context: ./pay-secure
+      dockerfile: Dockerfile
+    container_name: payment-secure
+    ports:
+      - "8081:8081"
+    environment:
+      - ADMIN_PASSWORD=SecurePass123!
+      - ENCRYPTION_KEY=VGhpc0lzMzJCeXRlc0xvbmdTZWNyZXRLZXkxMjM=
+    networks:
+      - payment-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/paysecure/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Payment Gateway Bridge Service
+  pay-bridge:
+    build:
+      context: ./pay-bridge
+      dockerfile: Dockerfile
+    container_name: payment-bridge
+    ports:
+      - "8083:8083"
+    environment:
+      - BRIDGE_PASSWORD=BridgePass123!
+    networks:
+      - payment-network
+    depends_on:
+      - pay-secure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/paybridge/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Payment Processing Service
+  pay-proc:
+    build:
+      context: ./pay-proc
+      dockerfile: Dockerfile
+    container_name: payment-processor
+    ports:
+      - "8082:8082"
+    environment:
+      - PROC_PASSWORD=ProcPass123!
+      - PAY_SECURE_PASSWORD=SecurePass123!
+      - PAY_BRIDGE_PASSWORD=BridgePass123!
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/payDemo
+      - SPRING_DATASOURCE_USERNAME=payadmin
+      - SPRING_DATASOURCE_PASSWORD=PayStr0ng!2024
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=none
+      - SERVICES_PAY_SECURE_URL=http://pay-secure:8081/paysecure
+      - SERVICES_PAY_BRIDGE_URL=http://pay-bridge:8083/paybridge
+    networks:
+      - payment-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pay-secure:
+        condition: service_started
+      pay-bridge:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/payproc/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Frontend Terminal Service
+  pay-terminal:
+    build:
+      context: ./pay-terminal
+      dockerfile: Dockerfile
+    container_name: payment-terminal
+    ports:
+      - "8080:8080"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8082/payproc
+      - REACT_APP_PAY_PROC_USERNAME=payproc
+      - REACT_APP_PAY_PROC_PASSWORD=ProcPass123!
+    networks:
+      - payment-network
+    depends_on:
+      - pay-proc
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+networks:
+  payment-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
